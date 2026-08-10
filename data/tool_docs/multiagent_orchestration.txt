@@ -1,0 +1,26 @@
+Title: Multi-agent orchestration - why split into agents at all
+
+Splitting a system into multiple specialized agents rather than one
+general-purpose agent trades some overhead (an extra routing decision, more
+moving parts to coordinate) for several concrete benefits: each agent's
+instructions stay focused rather than needing to handle every possible mode
+of behavior in one prompt; each agent only needs the specific context
+relevant to its job, rather than everything relevant to every possible
+task; failures become diagnosable per-component rather than only visible as
+one opaque bad output; and new capability can be added by registering a new
+agent rather than editing and re-testing a single monolithic prompt.
+
+The orchestrator's job splits into two genuinely different parts. Deciding
+which agent should handle a request is itself an LLM call - it requires
+judgment, especially for ambiguous or compound requests. Dispatching to the
+chosen agent, once a decision has been made, is ordinary code - matching a
+returned name to the corresponding function. Conflating these two steps
+makes a system harder to reason about; keeping them distinct means the only
+place "intelligence" is required is the decision itself.
+
+Routing decisions themselves can be made three different ways: fixed
+keyword rules (fast, free, brittle to phrasing); embedding-based similarity
+between the request and each agent's description (fast, generalizes better
+than keywords, weak on genuinely ambiguous or compound requests); or an
+LLM reasoning over the request and a list of agent descriptions (most
+flexible, handles ambiguity and compound requests, slower and non-free).

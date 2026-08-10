@@ -1,0 +1,17 @@
+# REPLACE THIS FILE with your real background before running the system.
+#
+# The Question Generator and Evaluator read this file to pick relevant
+# questions and judge your answers - if this is left as placeholder text,
+# questions/scoring will be generic and not calibrated to your real
+# experience. Plain text is fine, doesn't need to be a formal CV format.
+#
+# Example of what to include:
+# - Your degree program and university
+# - Relevant coursework or self-study (e.g. what you've learned about
+#   multi-agent systems, RAG, LangGraph)
+# - Projects you've built (e.g. describe your research-assistant-orchestrator
+#   project here - what it does, what libraries it uses)
+# - Any prior research, data analysis, or user-study experience
+# - Programming languages/tools you're comfortable with
+
+[Replace this entire section with your actual background.]

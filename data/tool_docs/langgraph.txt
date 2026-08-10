@@ -1,0 +1,35 @@
+Title: LangGraph - orchestration as an explicit state machine
+
+LangGraph represents an agentic workflow as a graph: nodes are steps
+(usually a function or an LLM call), and edges define which node runs next.
+Unlike a simple linear chain, LangGraph supports conditional edges, where a
+routing function inspects the current state and decides the next node at
+runtime, and cycles, where execution can loop back to an earlier node -
+essential for patterns like "retry until a test passes" or "loop until a
+critic approves."
+
+State is a typed object (commonly a TypedDict or dataclass) that flows
+through every node. Each node returns a partial update to that state rather
+than replacing it entirely, and LangGraph merges those updates - this is
+what lets a "history" field accumulate across many turns without every node
+needing to know about the whole state.
+
+Two graph-building primitives matter most in practice. add_edge connects
+one node unconditionally to the next. add_conditional_edges attaches a
+routing function to a node's output: LangGraph calls that function with the
+current state, and whatever value it returns is looked up in a mapping to
+decide the next node - this is the mechanism behind mode-switching,
+retry-until-success loops, and any "decide what happens next based on what
+just happened" behavior.
+
+LangGraph also supports checkpointing: persisting state after every node,
+so a run can be paused, resumed, or replayed from any point - useful for
+human-in-the-loop workflows where the graph needs to pause and wait for a
+person before continuing.
+
+Alternatives with different tradeoffs: CrewAI defines agents by role and
+goal and handles coordination more automatically, trading fine-grained
+control for faster prototyping. AutoGen models agents as directly
+conversing with each other via message passing rather than a graph a
+developer defines explicitly, suited to more open-ended collaborative
+tasks where the exact sequence of steps isn't known in advance.

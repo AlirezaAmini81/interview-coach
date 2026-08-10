@@ -1,0 +1,29 @@
+Position: Student employment (80 hours/month), OrKA project
+Institute for Software Engineering and Theoretical Computer Science
+Quality and Usability Lab, TU Berlin
+
+Project goal: research-based development of an orchestrator agent that
+enables scalable collaboration between text-based conversation agents,
+sustainably expanded through simple integration of further technologically
+diverse agents.
+
+Tasks:
+1. Research and analysis of current multi-agent and orchestration approaches (~25%)
+2. Support in the implementation and testing of orchestration and agent functions (~30%)
+3. Support in preparing and maintaining agent descriptions, interfaces and evaluation data (~10%)
+4. Support in conducting and evaluating assessments, benchmarks and experiments on agent coordination and user interaction (~35%)
+
+Must-have profile:
+- Enrollment at a German university
+- Excellent knowledge of conversational agents
+- Very good knowledge of Large Language Models
+- Excellent knowledge of multi-agent systems
+- Good programming skills in Python
+- Experience with data analysis, experiments, and prior experience with user studies
+- Experience in scientific work
+- Willingness to work primarily on TU Berlin campus
+- Good German and/or English skills
+
+Nice-to-have:
+- Good knowledge of APIs, open-source frameworks, or common AI tools
+- Experience in research or user evaluation

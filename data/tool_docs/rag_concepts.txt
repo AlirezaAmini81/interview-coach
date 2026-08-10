@@ -1,0 +1,24 @@
+Title: Retrieval-augmented generation, revisited
+
+RAG grounds a model's answer in retrieved external content rather than
+relying only on what the model memorized during training. The pipeline
+splits into an indexing phase (documents are chunked, embedded into vectors,
+and stored) done once, and a query phase (the incoming question is
+embedded the same way, the nearest stored vectors are retrieved, and that
+content is inserted into the prompt) done on every request.
+
+A distinction worth being precise about: sparse retrieval (like TF-IDF)
+represents text as word-frequency vectors and matches on shared vocabulary;
+dense retrieval uses a neural embedding model to represent meaning, so a
+paraphrased query without shared words can still retrieve the right chunk.
+Dense retrieval generally generalizes better to varied phrasing, at the
+cost of needing a trained embedding model rather than pure statistics.
+
+Groundedness (sometimes called faithfulness) is a specific, checkable
+quality dimension: does the generated answer only contain claims actually
+present in the retrieved content, or does it add unsupported assertions?
+This is distinct from relevance (did retrieval find the right content at
+all) and from answer relevance (does the final answer actually address the
+question) - a RAG system can fail on any one of these three independently,
+which is why evaluating RAG quality typically checks all three separately
+rather than judging the final answer alone.

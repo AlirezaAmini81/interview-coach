@@ -1,0 +1,28 @@
+Title: LangChain - reusable building blocks for LLM applications
+
+LangChain provides pre-built components so common LLM-application code
+doesn't need to be written from scratch each time. The most load-bearing
+pieces in practice are prompt templates, tool/function definitions, document
+loaders, and provider-agnostic chat model wrappers.
+
+A tool in LangChain is a function wrapped with a name, a description, and a
+schema for its arguments - typically via the @tool decorator or a
+StructuredTool class. Once a set of tools is bound to a chat model with
+.bind_tools(), the model can choose to call one by returning a structured
+tool-call object instead of plain text, and the calling code executes the
+matching function and returns the result. This is the production mechanism
+behind "the model decides what to do," sturdier than asking a model to
+output JSON as part of a text reply and hoping it parses.
+
+Document loaders convert real-world sources - web pages, PDFs, markdown
+files, databases - into a standard Document object (text plus metadata)
+that downstream code, including retrieval pipelines, can consume uniformly
+regardless of where the content originally came from.
+
+init_chat_model gives a single interface for initializing a chat model from
+different providers by name, so switching from one provider to another is a
+configuration change rather than a rewrite of calling code.
+
+LangChain and LangGraph are not competitors: LangGraph typically manages
+control flow (which node runs next), while LangChain's tools and model
+wrappers are what a given node actually calls to get work done.

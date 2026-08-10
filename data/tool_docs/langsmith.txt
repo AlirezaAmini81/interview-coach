@@ -1,0 +1,26 @@
+Title: LangSmith - observability and evaluation for LLM applications
+
+LangSmith is not a framework for building agents - it's a platform for
+watching them run and for measuring how good they are. Two capabilities
+matter most: tracing and evaluation.
+
+Tracing: once tracing is enabled (typically via environment variables), every
+call made through LangChain or LangGraph - each LLM call, each tool
+invocation, each node in a graph - is logged as a step in a trace, including
+the exact input and output at that step. This turns a multi-agent system
+from a black box into something inspectable: when a run produces a bad
+result, a trace shows exactly which step introduced the problem, rather
+than only showing the final output.
+
+Evaluation: LangSmith supports building a dataset of examples (an input and
+an expected or reference output) and running an evaluator - which can
+itself be an LLM prompted to judge quality - against every example in that
+dataset. This produces an aggregate score across many cases rather than a
+single anecdotal check, and the same dataset can be re-run after a change
+to see whether a metric actually improved.
+
+A relevant nuance for reliability: an evaluator LLM can be asked to judge
+the same input twice and disagree with itself. Measuring that
+disagreement rate is itself a legitimate evaluation - it tells you how much
+to trust a single verdict from that evaluator before treating it as ground
+truth.
