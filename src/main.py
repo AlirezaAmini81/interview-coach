@@ -11,6 +11,7 @@ import os
 
 from dotenv import load_dotenv
 
+from .agents.must_have_extractor_agent import extract_must_haves
 from .llm.mock_provider import MockProvider
 from .orchestrator.graph import build_graph
 from .orchestrator.session_state import SessionState
@@ -19,6 +20,8 @@ from .rag.index import build_indices
 
 DEFAULT_ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
 CV_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "cv_placeholder.txt")
+JOB_POSTING_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "job_posting.txt")
+CHROMA_PATH = os.path.join(os.path.dirname(__file__), "..", ".chroma_data")
 
 
 def main() -> None:
@@ -52,7 +55,7 @@ def main() -> None:
         from .rag.embeddings import OllamaEmbedder
         embedder_factory = OllamaEmbedder
 
-    project_store, project_embedder, docs_store, docs_embedder = build_indices(embedder_factory)
+    project_store, project_embedder, docs_store, docs_embedder = build_indices(embedder_factory, persist_path=CHROMA_PATH)
     graph = build_graph(llm, project_store, project_embedder, docs_store, docs_embedder)
 
     with open(CV_PATH, encoding="utf-8") as f:
@@ -61,7 +64,13 @@ def main() -> None:
         print("NOTE: data/cv_placeholder.txt is still the placeholder - questions "
               "and scoring won't be calibrated to your real background until you fill it in.\n")
 
-    state = SessionState()
+    job_posting_text = ""
+    if os.path.exists(JOB_POSTING_PATH):
+        with open(JOB_POSTING_PATH, encoding="utf-8") as f:
+            job_posting_text = f.read()
+    must_haves = extract_must_haves(job_posting_text, llm)
+
+    state = SessionState(must_haves=must_haves)
     print("Interview coach ready. Answer questions as they come, or ask to have "
           "something explained (e.g. 'explain LangGraph conditional edges'). "
           "Type 'quit' to exit.\n")

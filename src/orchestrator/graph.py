@@ -124,6 +124,12 @@ def build_graph(
 
     def explain_node(state: CoachState) -> dict[str, Any]:
         answer = explainer_agent.explain(state["user_message"], docs_store, docs_embedder, llm)
+        s = state["session_state"]
+        if s.pending_kind == "behavioral" and s.pending_question:
+            # Explain mode never touches pending state (unlike quiz mode,
+            # which overwrites it - see behavioral_node) - but the question
+            # scrolled out of view, so remind the user it's still open.
+            answer += f"\n\n(Still waiting on: {s.pending_question})"
         return {"response": answer, "session_complete": False}
 
     def quiz_node(state: CoachState) -> dict[str, Any]:

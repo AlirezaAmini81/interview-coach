@@ -23,3 +23,11 @@ class ScoreResult(BaseModel):
     """A 1-5 score with justification - used for both behavioral and quiz answers."""
     score: int = Field(description="Integer score from 1 to 5", ge=1, le=5)
     justification: str = Field(description="One sentence")
+
+
+class MustHaveList(BaseModel):
+    """The substantive, interview-testable requirements extracted from a job posting."""
+    must_haves: list[str] = Field(
+        description="Short topic phrases, e.g. 'multi-agent systems knowledge' - "
+        "excluding eligibility/logistics items like enrollment, location, or language"
+    )

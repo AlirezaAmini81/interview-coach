@@ -37,6 +37,10 @@ class SessionState:
     history: list[dict] = field(default_factory=list)
     scored_answers: list[ScoredAnswer] = field(default_factory=list)
     covered_topics: set[str] = field(default_factory=set)
+    # Defaults to the hardcoded MUST_HAVES above; pass an explicit list (see
+    # agents/must_have_extractor_agent.py) to test against a real,
+    # dynamically-parsed job posting instead.
+    must_haves: list[str] = field(default_factory=lambda: list(MUST_HAVES))
     turn_count: int = 0
     pending_question: str | None = None
     pending_topic: str | None = None
@@ -55,10 +59,10 @@ class SessionState:
         # probed enough times), not an automatic side effect of scoring.
 
     def uncovered_topics(self) -> list[str]:
-        return [t for t in MUST_HAVES if t not in self.covered_topics]
+        return [t for t in self.must_haves if t not in self.covered_topics]
 
     def coverage_fraction(self) -> float:
-        return len(self.covered_topics) / len(MUST_HAVES) if MUST_HAVES else 1.0
+        return len(self.covered_topics) / len(self.must_haves) if self.must_haves else 1.0
 
     def average_score(self) -> float:
         if not self.scored_answers:

@@ -49,6 +49,11 @@ class MockProvider(LLMProvider):
         if "not_applicable" in system_lower:
             return {"verdict": "not_applicable", "reasoning": "mock: no implementation claim detected"}
 
+        if "must-have" in system_lower:
+            from ..orchestrator.session_state import MUST_HAVES
+
+            return {"must_haves": list(MUST_HAVES)}
+
         if "score" in system_lower and "1-5" in system_lower:
             return {"score": 3, "justification": "mock: placeholder mid-range score"}
 

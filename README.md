@@ -34,6 +34,17 @@ Try both interaction modes:
   `compare LangGraph and CrewAI` - this is Explain mode, and works even
   with a question still pending; it'll come back to that question after.
 
+### Web UI (Streamlit)
+
+```bash
+streamlit run streamlit_app.py
+```
+
+A chat interface over the same graph/agents/RAG code - pick provider/embedder
+and paste your CV in the sidebar, then chat. Sidebar also shows live
+coverage of must-haves and running average score. No logic differs from the
+CLI; this is presentation only.
+
 ## Running the evals
 
 ```bash

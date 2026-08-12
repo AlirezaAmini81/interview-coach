@@ -39,8 +39,8 @@ def test_indices_are_genuinely_separate():
 
     # A code-specific query should not surface a concept-doc source, and
     # vice versa - confirms the two corpora aren't accidentally merged.
-    project_sources = {c.source for c in project_store._chunks}
-    docs_sources = {c.source for c in docs_store._chunks}
+    project_sources = {c.source for c in project_store.chunks()}
+    docs_sources = {c.source for c in docs_store.chunks()}
     assert project_sources.isdisjoint(docs_sources)
     assert "rag_vector_store.py" in project_sources
     assert "rag_concepts.txt" in docs_sources
