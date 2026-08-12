@@ -20,7 +20,7 @@ def test_project_index_finds_real_code_not_concept_docs():
     results = project_store.search(query_vector, k=1)
 
     assert len(results) == 1
-    assert results[0].chunk.source == "rag_vector_store.py"
+    assert results[0].chunk.source == "project:sample-project/rag_vector_store.py"
 
 
 def test_docs_index_finds_concept_docs_not_project_code():
@@ -42,5 +42,5 @@ def test_indices_are_genuinely_separate():
     project_sources = {c.source for c in project_store.chunks()}
     docs_sources = {c.source for c in docs_store.chunks()}
     assert project_sources.isdisjoint(docs_sources)
-    assert "rag_vector_store.py" in project_sources
+    assert "project:sample-project/rag_vector_store.py" in project_sources
     assert "rag_concepts.txt" in docs_sources

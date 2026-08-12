@@ -33,6 +33,27 @@ class SearchResult:
     score: float
 
 
+INDEXABLE_EXTENSIONS = (".txt", ".md", ".py")
+
+
+def chunk_text(text: str, source: str, max_chars: int = 600) -> list[Chunk]:
+    """Split on blank lines; merge short paragraphs up to max_chars. Lives
+    here (not index.py or live_fetch.py) because both of those need it and
+    live_fetch.py already needs to import from index.py's would-be
+    counterpart - keeping it in this shared, dependency-free module avoids
+    a circular import between them."""
+    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+    chunks, buffer = [], ""
+    for paragraph in paragraphs:
+        if buffer and len(buffer) + len(paragraph) > max_chars:
+            chunks.append(Chunk(text=buffer.strip(), source=source))
+            buffer = ""
+        buffer += ("\n\n" if buffer else "") + paragraph
+    if buffer:
+        chunks.append(Chunk(text=buffer.strip(), source=source))
+    return chunks
+
+
 class VectorStore:
     def __init__(self, collection_name: str, persist_path: str | None = None):
         """persist_path=None uses an in-memory client (what tests get by
@@ -96,7 +117,16 @@ def rebuild_store(store: VectorStore, chunks: list[Chunk], embedder: Embedder) -
     live_fetch.py (a single new fetch added to whatever's already there) -
     same operation either way, and it has to be the *full* set each time,
     not just the new chunks, because TfidfEmbedder's vectors are only
-    meaningful relative to the vocabulary it was fit on."""
+    meaningful relative to the vocabulary it was fit on.
+
+    Empty `chunks` is a legitimate case (e.g. all of a user's projects
+    removed - see index.py's _build_project_store), not an error -
+    TfidfVectorizer.fit([]) raises ValueError ("empty vocabulary"), so
+    that path is short-circuited here rather than trying to fit on
+    nothing."""
+    if not chunks:
+        store.replace([], np.empty((0, 0)))
+        return
     texts = [c.text for c in chunks]
     embedder.fit(texts)
     vectors = embedder.embed(texts)

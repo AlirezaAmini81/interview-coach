@@ -13,7 +13,7 @@ from src.llm.mock_provider import MockProvider
 from src.orchestrator.graph import build_graph
 from src.orchestrator.session_state import SessionState
 from src.rag.embeddings import OllamaEmbedder, TfidfEmbedder
-from src.rag.index import build_indices
+from src.rag.index import DEFAULT_PROJECT_SOURCES, build_indices, parse_project_location
 
 load_dotenv()
 
@@ -27,9 +27,9 @@ st.set_page_config(page_title="Interview Coach", page_icon="🎤", layout="wide"
 
 
 @st.cache_resource(show_spinner="Building RAG indices...")
-def get_indices(embedder_choice: str):
+def get_indices(embedder_choice: str, project_sources: list[dict]):
     embedder_factory = OllamaEmbedder if embedder_choice == "ollama" else TfidfEmbedder
-    return build_indices(embedder_factory, persist_path=CHROMA_PATH)
+    return build_indices(embedder_factory, persist_path=CHROMA_PATH, project_sources=project_sources)
 
 
 @st.cache_resource(show_spinner="Connecting to LLM provider...")
@@ -81,6 +81,31 @@ with st.sidebar:
 
     embedder_choice = st.selectbox("Embedder", ["tfidf", "ollama"])
 
+    st.header("Your projects")
+    if "projects" not in st.session_state:
+        st.session_state["projects"] = list(DEFAULT_PROJECT_SOURCES)
+
+    for i, proj in enumerate(st.session_state["projects"]):
+        col1, col2 = st.columns([5, 1])
+        col1.write(f"**{proj['name']}** ({proj['kind']}) `{proj['location']}`")
+        if col2.button("✕", key=f"remove_project_{i}"):
+            st.session_state["projects"].pop(i)
+            st.rerun()
+
+    with st.form("add_project_form", clear_on_submit=True):
+        new_name = st.text_input("Project name")
+        new_location = st.text_input("Local folder path or GitHub repo (URL or owner/repo)")
+        if st.form_submit_button("Add project") and new_name and new_location:
+            kind, location = parse_project_location(new_location)
+            st.session_state["projects"].append({"name": new_name, "kind": kind, "location": location})
+            st.rerun()
+
+    st.caption(
+        "Answers get fact-checked against ALL of these combined - whichever "
+        "project is actually relevant to a given answer gets found "
+        "automatically by the search itself, no need to say which one you mean."
+    )
+
     job_posting_text = st.text_area(
         "Job posting",
         value=st.session_state.get("job_posting_text", default_job_posting_text()),
@@ -102,10 +127,11 @@ with st.sidebar:
         st.warning("Still the placeholder CV - questions and scoring won't be calibrated to your real background.")
 
     if st.button("Start / Restart session", type="primary"):
-        keep_cv, keep_posting = cv_text, job_posting_text
+        keep_cv, keep_posting, keep_projects = cv_text, job_posting_text, st.session_state["projects"]
         st.session_state.clear()
         st.session_state["cv_text"] = keep_cv
         st.session_state["job_posting_text"] = keep_posting
+        st.session_state["projects"] = keep_projects
         st.rerun()
 
 if provider_choice == "anthropic" and not api_key:
@@ -114,7 +140,7 @@ if provider_choice == "anthropic" and not api_key:
 
 try:
     llm = get_llm(provider_choice, ollama_model, api_key)
-    project_store, project_embedder, docs_store, docs_embedder = get_indices(embedder_choice)
+    project_store, project_embedder, docs_store, docs_embedder = get_indices(embedder_choice, st.session_state["projects"])
 except ConnectionError as exc:
     st.error(f"Could not reach Ollama: {exc}")
     st.stop()

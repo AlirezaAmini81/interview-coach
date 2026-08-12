@@ -33,13 +33,14 @@ import urllib.parse
 import urllib.request
 
 from .embeddings import Embedder
-from .index import chunk_text
-from .vector_store import Chunk, SearchResult, VectorStore, rebuild_store
+from .vector_store import Chunk, INDEXABLE_EXTENSIONS, SearchResult, VectorStore, chunk_text, rebuild_store
 
 RELEVANCE_THRESHOLD = 0.2
 GITHUB_API = "https://api.github.com"
 MAX_README_CHARS = 6000
 REQUEST_TIMEOUT = 6
+MAX_PROJECT_FILE_BYTES = 50_000
+PROJECT_FILE_SKIP_PATH_PARTS = ("node_modules", ".git", "vendor", "dist", "build", "__pycache__")
 
 # Stripped from the front/end of a question before treating the remainder
 # as a topic/entity name - order matters, longer/more specific phrases
@@ -133,6 +134,64 @@ def fetch_github_readme(topic: str) -> Chunk | None:
     if not text.strip():
         return None
     return Chunk(text=text, source=f"github:{full_name}/README.md")
+
+
+def fetch_github_repo_files(owner_repo: str, max_files: int = 20) -> list[Chunk]:
+    """Fetch up to `max_files` indexable source files from a real GitHub
+    repo (e.g. "someuser/some-project"), each chunked and tagged with its
+    path within the repo - `source=f"{owner_repo}/{path}"`. Used for
+    ingesting a user's OWN project as a fact-checking source (see
+    index.py) - a different concern from fetch_github_readme, which finds
+    docs about OTHER tools someone asks about.
+
+    Uses the general REST API (60 req/hour unauthenticated) rather than
+    the tight 10 req/min *search* endpoint fetch_github_readme relies on -
+    a bigger budget, but still bounded by max_files, since one call here
+    can mean many individual file fetches (one request per file, no bulk
+    content endpoint). Any failure at any step - repo not found, network
+    down, empty repo - returns [], same honest-degradation contract as the
+    rest of this module."""
+    repo_body = _github_get(f"{GITHUB_API}/repos/{owner_repo}", headers={"Accept": "application/vnd.github+json"})
+    if repo_body is None:
+        return []
+    try:
+        default_branch = json.loads(repo_body).get("default_branch")
+    except json.JSONDecodeError:
+        return []
+    if not default_branch:
+        return []
+
+    tree_body = _github_get(
+        f"{GITHUB_API}/repos/{owner_repo}/git/trees/{default_branch}?recursive=1",
+        headers={"Accept": "application/vnd.github+json"},
+    )
+    if tree_body is None:
+        return []
+    try:
+        tree = json.loads(tree_body).get("tree", [])
+    except json.JSONDecodeError:
+        return []
+
+    candidates = [
+        item for item in tree
+        if item.get("type") == "blob"
+        and item.get("path", "").endswith(INDEXABLE_EXTENSIONS)
+        and item.get("size", 0) <= MAX_PROJECT_FILE_BYTES
+        and not set(item["path"].split("/")) & set(PROJECT_FILE_SKIP_PATH_PARTS)
+    ][:max_files]
+
+    chunks: list[Chunk] = []
+    for item in candidates:
+        path = item["path"]
+        file_body = _github_get(
+            f"{GITHUB_API}/repos/{owner_repo}/contents/{path}", headers={"Accept": "application/vnd.github.raw+json"}
+        )
+        if not file_body:
+            continue
+        text = file_body.decode("utf-8", errors="ignore")
+        if text.strip():
+            chunks.extend(chunk_text(text, source=f"{owner_repo}/{path}"))
+    return chunks
 
 
 def augment_with_live_fetch(topic: str, store: VectorStore, embedder: Embedder) -> bool:
