@@ -107,3 +107,44 @@ def test_quiz_mode_start_and_answer():
     quiz_scores = [s for s in state.scored_answers if s.kind == "quiz"]
     assert len(quiz_scores) == 1
     assert quiz_scores[0].score == 4
+
+
+def test_behavioral_question_grounds_in_topic_material_when_available():
+    # "LangGraph" is real content in the local tool_docs corpus (confirmed
+    # earlier: bare topic names for in-corpus tools clear RELEVANCE_THRESHOLD
+    # comfortably), so this never needs a real network call.
+    llm = ScriptedProvider(scores=[])
+    graph = _fresh_graph(llm)
+    state = SessionState(must_haves=["LangGraph"])
+
+    _invoke(graph, state, "ready")
+
+    assert state.pending_topic_excerpts
+    assert "langgraph" in state.pending_topic_excerpts.lower()
+
+
+def test_behavioral_question_ungrounded_for_topic_with_nothing_local():
+    # Behavioral grounding is local-only (no live-fetch - see
+    # BEHAVIORAL_GROUNDING_THRESHOLD's docstring in graph.py), so this
+    # never touches the network regardless.
+    llm = ScriptedProvider(scores=[])
+    graph = _fresh_graph(llm)
+    state = SessionState(must_haves=["zzqxvbflibbergibbet12345"])  # shares no vocabulary with the corpus
+
+    _invoke(graph, state, "ready")
+
+    assert state.pending_topic_excerpts is None
+
+
+def test_behavioral_question_ungrounded_for_generic_phrase_despite_weak_overlap():
+    # Regression: "scientific work experience" scored 0.253 against
+    # completely unrelated LangChain content under the old shared 0.2
+    # threshold - generic filler words ("work") gave a spurious match, not
+    # real relevance. BEHAVIORAL_GROUNDING_THRESHOLD (0.3) must exclude it.
+    llm = ScriptedProvider(scores=[])
+    graph = _fresh_graph(llm)
+    state = SessionState(must_haves=["scientific work experience"])
+
+    _invoke(graph, state, "ready")
+
+    assert state.pending_topic_excerpts is None

@@ -46,6 +46,12 @@ class SessionState:
     pending_topic: str | None = None
     pending_kind: str | None = None  # "behavioral" or "quiz"
     pending_quiz_excerpts: str | None = None
+    # Reference material a pending BEHAVIORAL question was grounded in, if
+    # any was found (see graph.py's _advance_or_wrap_up) - lets scoring
+    # check topic correctness against the same material, not just the
+    # candidate's own project. None when nothing relevant was found for
+    # the topic - a normal, expected case, not an error.
+    pending_topic_excerpts: str | None = None
     probe_counts: dict = field(default_factory=dict)  # topic -> number of times probed
 
     def record_turn(self, role: str, content: str) -> None:

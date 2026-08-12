@@ -37,6 +37,22 @@ MAX_TURNS = 10
 MAX_PROBES_PER_TOPIC = 2
 LOW_SCORE_THRESHOLD = 3
 
+# Deliberately stricter than live_fetch.RELEVANCE_THRESHOLD (0.2), and
+# deliberately LOCAL-ONLY (no live-fetch attempt) - unlike explain/quiz,
+# where a bad match just means "nothing found, say so" (safe), a bad match
+# here means WRONG material gets silently used to write/score a question,
+# which is worse than no grounding at all. Verified empirically: abstract
+# must-have phrases like "scientific work experience" scored 0.253 against
+# totally unrelated LangChain content - the shared word was generic filler
+# ("work"), not a real signal - while genuinely relevant matches like
+# "multi-agent systems knowledge" (0.555) and "conversational agents
+# knowledge" (0.364, correctly matching on "agents") sit comfortably above
+# 0.3. No live-fetch here also matters beyond cost: docs_store is the same
+# persistent store explain/quiz use (see rag/live_fetch.py's Chroma
+# persistence) - a spurious fetch for a non-tool phrase would pollute it
+# permanently, not just for this one question.
+BEHAVIORAL_GROUNDING_THRESHOLD = 0.3
+
 
 class CoachState(TypedDict):
     user_message: str
@@ -70,8 +86,23 @@ def build_graph(
             return {"response": wrap_up, "session_complete": True}
 
         next_topic = s.uncovered_topics()[0]
-        question = question_generator_agent.generate_question(next_topic, cv_text, s.history, llm)
+
+        # Ground the question in real LOCAL material if there's confidently
+        # relevant coverage - local search only, no live-fetch (see
+        # BEHAVIORAL_GROUNDING_THRESHOLD above for why). Degrades cleanly to
+        # "" for topics with nothing confidently relevant - the common case
+        # for the abstract default must-haves, not a bug.
+        topic_vector = docs_embedder.embed([next_topic])[0]
+        topic_results = docs_store.search(topic_vector, k=3)
+        topic_excerpts = ""
+        if topic_results and topic_results[0].score >= BEHAVIORAL_GROUNDING_THRESHOLD:
+            topic_excerpts = "\n\n".join(f"[{r.chunk.source}] {r.chunk.text}" for r in topic_results)
+
+        question = question_generator_agent.generate_question(
+            next_topic, cv_text, s.history, llm, topic_excerpts=topic_excerpts
+        )
         s.pending_question, s.pending_topic, s.pending_kind = question, next_topic, "behavioral"
+        s.pending_topic_excerpts = topic_excerpts or None
 
         response = (feedback + "\n\n" if feedback else "") + question
         return {"response": response, "session_complete": False}
@@ -82,7 +113,10 @@ def build_graph(
         if s.pending_kind == "behavioral" and s.pending_question:
             topic = s.pending_topic
             fc = fact_checker_agent.check_answer(state["user_message"], project_store, project_embedder, llm)
-            ev = evaluator_agent.score_answer(topic, s.pending_question, state["user_message"], fc.get("verdict"), llm)
+            ev = evaluator_agent.score_answer(
+                topic, s.pending_question, state["user_message"], fc.get("verdict"), llm,
+                topic_excerpts=s.pending_topic_excerpts or "",
+            )
             score = int(ev.get("score", 3))
 
             s.record_score(ScoredAnswer(
@@ -106,7 +140,7 @@ def build_graph(
 
             # Either scored well, or already probed twice - move on for real.
             s.covered_topics.add(topic)
-            s.pending_question, s.pending_topic, s.pending_kind = None, None, None
+            s.pending_question, s.pending_topic, s.pending_kind, s.pending_topic_excerpts = None, None, None, None
             return _advance_or_wrap_up(s, feedback, state["cv_text"])
 
         if s.pending_kind == "quiz" and s.pending_question:
